@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pomodoro Pop Aitana 🎧⏰</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Tailwind CSS desde CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-500 via-purple-500 to-blue-500 text-white">
+  <div
+    id="card"
+    class="max-w-md w-full mx-4 bg-pink-500/30 backdrop-blur-xl rounded-3xl shadow-2xl p-6 sm:p-8 text-center border border-white/30"
+  >
+    <!-- Cabecera -->
+    <header class="mb-6">
+      <div class="text-5xl sm:text-6xl mb-2">⏰✨</div>
+      <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">
+        Pomodoro Pop Aitana
+      </h1>
+      <p class="mt-2 text-sm sm:text-base text-pink-50">
+        Modo estudio con vibes pop: tú, tu temario y Aitana en tu cabeza 🎤💜
+      </p>
+    </header>
+
+    <!-- Estado actual -->
+    <div class="mb-4">
+      <span
+        id="phaseLabel"
+        class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs sm:text-sm font-semibold bg-white/20 border border-white/40"
+      >
+        🔥 Trabajo
+      </span>
+    </div>
+
+    <!-- Temporizador -->
+    <div class="mb-6">
+      <div
+        id="timerDisplay"
+        class="text-5xl sm:text-6xl font-bold tabular-nums drop-shadow-lg"
+      >
+        25:00
+      </div>
+      <p class="mt-1 text-xs sm:text-sm text-pink-50">
+        Concéntrate a tope durante la fase de trabajo y luego disfruta del descanso 😌
+      </p>
+    </div>
+
+    <!-- Controles -->
+    <div class="flex flex-wrap gap-3 justify-center mb-5">
+      <button
+        id="startBtn"
+        class="flex-1 min-w-[90px] px-4 py-2 rounded-2xl bg-emerald-400 hover:bg-emerald-500 active:scale-95 transition text-sm sm:text-base font-semibold shadow-md flex items-center justify-center gap-1"
+      >
+        ▶️ Iniciar
+      </button>
+      <button
+        id="pauseBtn"
+        class="flex-1 min-w-[90px] px-4 py-2 rounded-2xl bg-amber-400 hover:bg-amber-500 active:scale-95 transition text-sm sm:text-base font-semibold shadow-md flex items-center justify-center gap-1"
+      >
+        ⏸️ Pausar
+      </button>
+      <button
+        id="resetBtn"
+        class="flex-1 min-w-[90px] px-4 py-2 rounded-2xl bg-rose-500 hover:bg-rose-600 active:scale-95 transition text-sm sm:text-base font-semibold shadow-md flex items-center justify-center gap-1"
+      >
+        🔄 Reiniciar
+      </button>
+    </div>
+
+    <!-- Info de pomodoros -->
+    <div class="mb-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-sm">
+      <p id="pomodoroCount" class="font-semibold">
+        🍅 Pomodoros completados: <span class="font-bold">0</span>/4
+      </p>
+      <p class="text-pink-50 text-xs sm:text-sm">
+        Tras 4 pomodoros, tendrás un descanso largo 😴
+      </p>
+    </div>
+
+    <!-- Notificación visual / mensaje -->
+    <div
+      id="notification"
+      class="mb-4 text-xs sm:text-sm text-center bg-white/10 rounded-2xl px-3 py-2 border border-white/10 min-h-[2.5rem]"
+      aria-live="assertive"
+    >
+      Lista para empezar. Cuando termine cada fase verás un aviso aquí 💫
+    </div>
+
+    <!-- Frase motivacional estilo Aitana -->
+    <div
+      id="quote"
+      class="mb-4 text-sm sm:text-base font-medium bg-white/20 rounded-2xl px-4 py-3 shadow-inner"
+    >
+      💖 “Modo Aitana ON: hoy vas a brillar estudiando.”
+    </div>
+
+    <!-- Instrucciones -->
+    <section class="mt-4 text-left text-xs sm:text-sm bg-black/10 rounded-2xl px-4 py-3">
+      <h2 class="font-semibold mb-2 flex items-center gap-1">
+        📚 Cómo usar este Pomodoro
+      </h2>
+      <ol class="list-decimal list-inside space-y-1">
+        <li>Guarda este código como <code>pomodoro-aitana.html</code>.</li>
+        <li>Haz doble clic en el archivo para abrirlo en tu navegador.</li>
+        <li>Pulsa <span class="font-semibold">“Iniciar”</span> para comenzar 25 min de trabajo.</li>
+        <li>Al terminar, sonará un aviso y tendrás 5 min de descanso.</li>
+        <li>Cada 4 pomodoros, el descanso será más largo para resetear mente y energía.</li>
+      </ol>
+    </section>
+  </div>
+
+  <!-- Sonido (puedes cambiar la URL si quieres otro tono) -->
+  <audio
+    id="endSound"
+    src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"
+    preload="auto"
+  ></audio>
+
+  <script>
+    // Duraciones en segundos
+    const WORK_DURATION = 25 * 60;        // 25 minutos
+    const SHORT_BREAK_DURATION = 5 * 60;  // 5 minutos
+    const LONG_BREAK_DURATION = 15 * 60;  // 15 minutos (descanso largo)
+
+    let currentMode = "work"; // "work" | "short" | "long"
+    let secondsLeft = WORK_DURATION;
+    let timerInterval = null;
+    let isRunning = false;
+    let completedPomodoros = 0;
+
+    const timerDisplay = document.getElementById("timerDisplay");
+    const phaseLabel = document.getElementById("phaseLabel");
+    const notification = document.getElementById("notification");
+    const quoteElement = document.getElementById("quote");
+    const pomodoroCountElement = document.querySelector("#pomodoroCount span");
+    const card = document.getElementById("card");
+
+    const startBtn = document.getElementById("startBtn");
+    const pauseBtn = document.getElementById("pauseBtn");
+    const resetBtn = document.getElementById("resetBtn");
+
+    const endSound = document.getElementById("endSound");
+
+    const quotes = {
+      work: [
+        "🎧 “Ella me dice que quiere divertirse, yo le digo que toca estudiar un ratito.”",
+        "🎶 “Vas a quedaaaaaaaaaarte (estudiando un ratito más) 🎧📚”",
+        "🔥 “Y es que si esto está mal, que me lleven presa (el tema de los presos es otro 😜)”",
+        "✨ “A por el pomodoro: tú eres una diosa de mujer. Una chula, una diabla de las que te lían.”"
+      ],
+      short: [
+        "😌 “Respira, estira y una pausita o unos besitos a Rogelia y a seguir.”",
+        "🌈 “Mini break: aguita, respirito, un wasapito a la mejor novia del mundo y a seguir.”",
+        "🧃 “Un sorbo, un suspiro, un beso y una flor como diría Nino Bravo y vuelta al foco.”"
+      ],
+      long: [
+        "🛋️ “Descanso largo oe oeee oeoeee: te lo has ganado.”",
+        "🌙 “Toca descansito un poco más largooooooo.”",
+        "🫶 “DESCANSOOOOOOO, ahora a buscar recetas en TikTok para cocinarle a Cris.”"
+      ]
+    };
+
+    // Índices para avanzar en orden y sin repetir hasta completar el ciclo de cada modo
+    let workQuoteIndex = 0;
+    let shortQuoteIndex = 0;
+    let longQuoteIndex = 0;
+
+    function formatTime(totalSeconds) {
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      const m = String(minutes).padStart(2, "0");
+      const s = String(seconds).padStart(2, "0");
+      return `${m}:${s}`;
+    }
+
+    function updateTimerDisplay() {
+      timerDisplay.textContent = formatTime(secondsLeft);
+    }
+
+    function setQuoteForMode(mode) {
+      if (mode === "work") {
+        const list = quotes.work;
+        const quote = list[workQuoteIndex];
+        quoteElement.textContent = quote;
+        workQuoteIndex = (workQuoteIndex + 1) % list.length;
+      } else if (mode === "short") {
+        const list = quotes.short;
+        const quote = list[shortQuoteIndex];
+        quoteElement.textContent = quote;
+        shortQuoteIndex = (shortQuoteIndex + 1) % list.length;
+      } else if (mode === "long") {
+        const list = quotes.long;
+        const quote = list[longQuoteIndex];
+        quoteElement.textContent = quote;
+        longQuoteIndex = (longQuoteIndex + 1) % list.length;
+      }
+    }
+
+    function updatePhaseLabel() {
+      if (currentMode === "work") {
+        phaseLabel.textContent = "🔥 Trabajo";
+      } else if (currentMode === "short") {
+        phaseLabel.textContent = "💆‍♀️ Descanso corto";
+      } else {
+        phaseLabel.textContent = "🌙 Descanso largo";
+      }
+    }
+
+    function updateCardColor() {
+      card.classList.remove(
+        "bg-pink-500/30",
+        "bg-emerald-500/30",
+        "bg-sky-500/30"
+      );
+
+      if (currentMode === "work") {
+        card.classList.add("bg-pink-500/30");
+      } else if (currentMode === "short") {
+        card.classList.add("bg-emerald-500/30");
+      } else {
+        card.classList.add("bg-sky-500/30");
+      }
+    }
+
+    function updatePomodoroCount() {
+      pomodoroCountElement.textContent = completedPomodoros;
+    }
+
+    function setNotification(message) {
+      notification.textContent = message;
+      notification.classList.remove("animate-pulse");
+      void notification.offsetWidth;
+      notification.classList.add("animate-pulse");
+      setTimeout(() => {
+        notification.classList.remove("animate-pulse");
+      }, 1500);
+    }
+
+    function playEndSound() {
+      if (!endSound) return;
+      endSound.currentTime = 0;
+      endSound.play().catch(() => {
+        // Si el navegador no deja reproducir, lo ignoramos
+      });
+    }
+
+    function setMode(mode) {
+      currentMode = mode;
+
+      if (mode === "work") {
+        secondsLeft = WORK_DURATION;
+      } else if (mode === "short") {
+        secondsLeft = SHORT_BREAK_DURATION;
+      } else {
+        secondsLeft = LONG_BREAK_DURATION;
+      }
+
+      updateTimerDisplay();
+      updatePhaseLabel();
+      updateCardColor();
+      setQuoteForMode(mode);
+    }
+
+    function clearTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+      isRunning = false;
+    }
+
+    function handlePhaseEnd() {
+      clearTimer();
+      playEndSound();
+
+      if (currentMode === "work") {
+        completedPomodoros++;
+        updatePomodoroCount();
+
+        if (completedPomodoros % 4 === 0) {
+          setNotification("✨ Fin de bloque de trabajo. ¡Descanso largo merecido!");
+          setMode("long");
+        } else {
+          setNotification("🎉 ¡Buen trabajo! Toca descanso corto.");
+          setMode("short");
+        }
+      } else if (currentMode === "short") {
+        setNotification("🔥 Descanso corto terminado. Volvemos al modo foco.");
+        setMode("work");
+      } else {
+        setNotification("💜 Fin del descanso largo. Nuevo ciclo de 4 pomodoros.");
+        completedPomodoros = 0;
+        updatePomodoroCount();
+        setMode("work");
+      }
+
+      // Inicia automáticamente la siguiente fase
+      startTimer();
+    }
+
+    function startTimer() {
+      if (isRunning) return;
+      isRunning = true;
+
+      setNotification("⏱️ Temporizador en marcha. ¡A tope con esta fase!");
+
+      timerInterval = setInterval(() => {
+        if (secondsLeft > 0) {
+          secondsLeft--;
+          updateTimerDisplay();
+        } else {
+          handlePhaseEnd();
+        }
+      }, 1000);
+    }
+
+    function pauseTimer() {
+      if (!isRunning) return;
+      clearTimer();
+      setNotification("⏸️ Temporizador en pausa. Respira y decide tu siguiente paso.");
+    }
+
+    function resetTimer() {
+      clearTimer();
+      currentMode = "work";
+      secondsLeft = WORK_DURATION;
+      completedPomodoros = 0;
+      workQuoteIndex = 0;
+      shortQuoteIndex = 0;
+      longQuoteIndex = 0;
+      updatePomodoroCount();
+      updatePhaseLabel();
+      updateCardColor();
+      setQuoteForMode("work");
+      updateTimerDisplay();
+      setNotification("🔄 Todo reseteado. Lista para un nuevo ciclo Pomodoro.");
+    }
+
+    // Eventos de botones
+    startBtn.addEventListener("click", startTimer);
+    pauseBtn.addEventListener("click", pauseTimer);
+    resetBtn.addEventListener("click", resetTimer);
+
+    // Estado inicial
+    updateTimerDisplay();
+    setQuoteForMode("work");
+  </script>
+</body>
+</html>
